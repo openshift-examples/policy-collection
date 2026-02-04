@@ -1,0 +1,128 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: policies
+spec: {}
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace:  policies
+spec:
+  clusterSet: global
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: all-clusters
+  namespace: policies
+spec:
+  clusterSets:
+    - global
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: gitops
+  namespace: policies
+  annotations:
+    policy.open-cluster-management.io/categories: Baseline
+    policy.open-cluster-management.io/controls: Baseline
+    policy.open-cluster-management.io/standards: OpenShift GitOps
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1beta1
+        kind: OperatorPolicy
+        metadata:
+          name: install-operator
+        spec:
+          remediationAction: enforce
+          severity: critical
+          complianceType: musthave
+          subscription:
+            name: openshift-gitops-operator
+            channel: latest
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+          upgradeApproval: Automatic
+          versions:
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: web-terminal
+  namespace: policies
+  annotations:
+    policy.open-cluster-management.io/categories: Baseline
+    policy.open-cluster-management.io/controls: Baseline
+    policy.open-cluster-management.io/standards: Web Terminal
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1beta1
+        kind: OperatorPolicy
+        metadata:
+          name: install-web-terminal
+        spec:
+          complianceType: musthave
+          remediationAction: enforce
+          severity: medium
+          subscription:
+            name: web-terminal
+            channel: fast
+            source: redhat-operators
+            sourceNamespace: openshift-marketplace
+          upgradeApproval: Automatic
+          versions:
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: check-certificates
+  namespace: policies
+  annotations:
+    policy.open-cluster-management.io/categories: Baseline
+    policy.open-cluster-management.io/controls: Baseline
+    policy.open-cluster-management.io/standards: Check Certificates
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: CertificatePolicy
+        metadata:
+          name: policy-certificate
+        spec:
+          remediationAction: inform
+          severity: low
+          minimumDuration: 300h
+          namespaceSelector:
+            exclude:
+              - kube-*
+            include:
+              - default
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: baseline-placement
+  namespace: policies
+placementRef:
+  name: all-clusters
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
+subjects:
+  - name: gitops
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io
+  - name: web-terminal
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io
+  - name: check-certificates
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io

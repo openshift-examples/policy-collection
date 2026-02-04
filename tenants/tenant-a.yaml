@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenants
+spec: {}
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: tenants
+spec:
+  clusterSet: global
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: tenant-a
+  namespace: tenants
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: coe.muc.redhat.com/tenant
+              operator: In
+              values:
+                - a
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: tenant-a
+  namespace: tenants
+  annotations:
+    policy.open-cluster-management.io/categories: tentant-a
+    policy.open-cluster-management.io/controls: tentant-a
+    policy.open-cluster-management.io/standards: tentant-a
+  managedFields:
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: quota
+        spec:
+          remediationAction: enforce
+          severity: critical
+          pruneObjectBehavior: DeleteIfCreated
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: quota.openshift.io/v1
+                kind: ClusterResourceQuota
+                metadata:
+                  name: tenant-a-quota
+                spec:
+                  quota:
+                    hard:
+                      pods: "10"
+                      secrets: "20"
+                  selector:
+                    labels:
+                      matchLabels:
+                        coe.muc.redhat.com/tenant: a
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: tenant-a-placement-binding
+  namespace: tenants
+placementRef:
+  name: tenant-a
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: tenant-a
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy
+
